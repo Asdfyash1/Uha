@@ -1,3 +1,3 @@
 #!/bin/bash
-echo "🚀 Build Started for Uha (SSH + Ngrok)"
+echo "🚀 Uha Build Started..."
 echo "✅ Build Completed Successfully!"
