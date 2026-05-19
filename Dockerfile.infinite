@@ -1,0 +1,31 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Kolkata
+
+ARG NGROK_AUTHTOKEN="37NqRkvP0SeusAE7PxEceFoMvN0_48x7KfUUirGd1e8vvisp5"
+ARG ROOT_PASSWORD="Darkboy336"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-utils ca-certificates curl wget openssh-server tzdata \
+    && ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && dpkg-reconfigure --frontend noninteractive tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# SSH Setup
+RUN echo "root:${ROOT_PASSWORD}" | chpasswd \
+    && mkdir -p /var/run/sshd \
+    && sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
+    && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+
+# Install ngrok
+RUN curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | tee /etc/apt/trusted.gpg.d/ngrok.asc > /dev/null \
+    && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | tee /etc/apt/sources.list.d/ngrok.list \
+    && apt-get update && apt-get install -y ngrok \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN if [ -n "${NGROK_AUTHTOKEN}" ]; then ngrok config add-authtoken "${NGROK_AUTHTOKEN}"; fi
+
+EXPOSE 22
+
+CMD ["/bin/bash", "-c", "/usr/sbin/sshd && ngrok tcp 22 --log=stdout"]
