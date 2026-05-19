@@ -1,26 +1,29 @@
 FROM ubuntu:22.04
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Asia/Kolkata
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Kolkata \
+    NGROK_AUTHTOKEN="37NqRkvP0SeusAE7PxEceFoMvN0_48x7KfUUirGd1e8vvisp5" \
+    ROOT_PASSWORD="Darkboy336"
 
-ARG NGROK_AUTHTOKEN="37NqRkvP0SeusAE7PxEceFoMvN0_48x7KfUUirGd1e8vvisp5"
-ARG ROOT_PASSWORD="Darkboy336"
-
+# Minimal packages + combine steps to make build faster
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl wget openssh-server tzdata \
-    && rm -rf /var/lib/apt/lists/*
+    openssh-server curl tzdata && \
+    ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime && \
+    dpkg-reconfigure --frontend noninteractive tzdata && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN echo "root:${ROOT_PASSWORD}" | chpasswd \
-    && mkdir -p /var/run/sshd \
-    && sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
-    && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+# SSH Setup
+RUN echo "root:${ROOT_PASSWORD}" | chpasswd && \
+    mkdir -p /var/run/sshd && \
+    sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-RUN curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | tee /etc/apt/trusted.gpg.d/ngrok.asc > /dev/null \
-    && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | tee /etc/apt/sources.list.d/ngrok.list > /dev/null \
-    && apt-get update && apt-get install -y ngrok \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN if [ -n "${NGROK_AUTHTOKEN}" ]; then ngrok config add-authtoken "${NGROK_AUTHTOKEN}"; fi
+# Install ngrok (single step)
+RUN curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && \
+    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | tee /etc/apt/sources.list.d/ngrok.list && \
+    apt-get update && apt-get install -y ngrok && \
+    rm -rf /var/lib/apt/lists/* && \
+    ngrok config add-authtoken ${NGROK_AUTHTOKEN}
 
 EXPOSE 22
 
